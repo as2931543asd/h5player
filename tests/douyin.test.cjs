@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../h5player.user.js'), 'utf8');
 const core = source.slice(source.indexOf('const mediaCore = (function () {'), source.indexOf('\n})();', source.indexOf('const mediaCore = (function () {')) + 6);
-const helpers = source.slice(source.indexOf('function getDouyinVodController ('), source.indexOf('\n/**\n * 媒体元素当前是否真的显示'));
+const helpers = source.slice(source.indexOf('function isDouyinHost ('), source.indexOf('\n/**\n * 媒体元素当前是否真的显示'));
 
 function method(name) {
   const start = source.indexOf(`\n  ${name}`);
@@ -48,6 +48,7 @@ function environment() {
       ${method('resetPlaybackRate:')}
       ${method('setCurrentTimeUp (')}
       ${method('setCurrentTimeDown (')}
+      ${method('keepDouyinPlaybackRate (')}
     };
     const configManager = { setLocalStorage() {} };
     function makeVod(direct = false) {
@@ -197,5 +198,38 @@ test('初始选择当前最大的视频，避免选中较小直播预览或屏�
     Object.assign(preview, { isConnected: true, area: 100, duration: Infinity });
     Object.assign(preload, { isConnected: true, area: 0 });
     assert.equal(selectPlayer([video, preview, preload]), video);
+  `);
+});
+
+test('倍速锁定期间，抖音把内部播放器倍速改回去时会被恢复', () => {
+  environment()(`
+    const { video, controller } = makeVod();
+    let locked = true;
+    const h5 = { keepDouyinPlaybackRate: controls.keepDouyinPlaybackRate, playerInstance: video,
+      isLockPlaybackRate: () => locked, getPlaybackRate: () => 2 };
+    controller.playbackRate = 1;
+    assert.equal(h5.keepDouyinPlaybackRate(video), true);
+    assert.equal(controller.playbackRate, 2);
+    assert.equal(h5.keepDouyinPlaybackRate(video), false);
+    controller.playbackRate = 1;
+    locked = false;
+    assert.equal(h5.keepDouyinPlaybackRate(video), false);
+    assert.equal(controller.playbackRate, 1);
+    locked = true;
+    h5.playerInstance = new HTMLMediaElement();
+    assert.equal(h5.keepDouyinPlaybackRate(video), false);
+    assert.equal(controller.playbackRate, 1);
+  `);
+});
+
+test('用户暂停当前视频时，不会跳去控制另一个暂停的视频', () => {
+  environment()(`
+    const current = new HTMLMediaElement();
+    const other = new HTMLMediaElement();
+    Object.assign(current, { isConnected: true, area: 500, paused: true });
+    Object.assign(other, { isConnected: true, area: 2000, paused: true });
+    assert.equal(selectPlayer([current, other], current), current);
+    other.paused = false;
+    assert.equal(selectPlayer([current, other], current), other);
   `);
 });

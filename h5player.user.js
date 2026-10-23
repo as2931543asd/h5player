@@ -3,7 +3,7 @@
 // @name:zh      音视频增强脚本：支持无极调速、倍速快学、快乐刷剧、视频下载、画面截图等「适用大部分网站」
 // @namespace    https://github.com/xxxily/h5player
 // @homepage     https://github.com/xxxily/h5player
-// @version      5.0.1
+// @version      5.0.2
 // @description  视频增强脚本，支持所有H5音视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @description:zh  音视频增强脚本，支持所有H5视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @author       ankvps
@@ -795,8 +795,12 @@ function isInShadow (node, returnShadowRoot) {
  * DOM video 只是输出画面，进度和倍速必须交给所属播放器的代理对象。
  * 每次读取，避免信息流复用元素或销毁播放器后持有过期代理。
  */
+function isDouyinHost () {
+  return /(^|\.)douyin\.com$/.test(window.location.hostname)
+}
+
 function getDouyinVodController (element) {
-  if (!element || !/(^|\.)douyin\.com$/.test(window.location.hostname)) return null
+  if (!element || !isDouyinHost()) return null
   if (!(typeof MediaStream !== 'undefined' && element.srcObject instanceof MediaStream)) return null
   try {
     const root = element.closest && element.closest('.douyin-player');
@@ -4625,7 +4629,7 @@ const monkeyMenu = {
   }
 };
 
-const version = '5.0.0';
+const version = '5.0.2';
 
 function refreshPage(msg) {
   msg = msg || '配置已更改，马上刷新页面让配置生效？';
@@ -6036,8 +6040,14 @@ const h5Player = {
       /* 有多个正在播放的视频时，选在屏幕上露出面积最大的那个，而不是列表里的第一个 */
       let playingMedia = null;
       let bestArea = 0;
+      /**
+       * 只有当前对象已经不能用（不在页面、不可控、不可见）时，才允许暂停或缓冲中的视频接管；
+       * 用户只是暂停了当前视频时，不能跳去控制页面上另一个暂停的视频
+       */
+      const allowIdle = !playerInstance.isConnected || !isControllableMedia(playerInstance) || !isMediaVisible(playerInstance);
       t.getPlayerList().forEach(media => {
         if (media === playerInstance || !isControllableMedia(media) || !isMediaVisible(media) || media.ended) return
+        if (media.paused && !allowIdle) return
         const area = getVisibleArea(media);
         /* 正在播放优先；暂停或缓冲中的普通视频也可以接管不可控的背景流。 */
         if (!playingMedia || (playingMedia.paused && !media.paused) || (playingMedia.paused === media.paused && area > bestArea)) {
@@ -6190,6 +6200,14 @@ const h5Player = {
         t.initAutoPlay(player);
       });
       player._hasCanplayEvent_ = true;
+    }
+
+    /* 抖音点播输出流：播放过程中检查内部播放器的倍速有没有被抖音自己改回去 */
+    if (!player._hasDouyinRateGuard_ && isDouyinHost()) {
+      player.addEventListener('timeupdate', function () {
+        t.keepDouyinPlaybackRate(player);
+      });
+      player._hasDouyinRateGuard_ = true;
     }
 
     /* 播放的时候进行相关同步操作 */
@@ -6567,6 +6585,21 @@ const h5Player = {
     if (Math.abs(curPlaybackRate - oldPlaybackRate) > 1) {
       t.setCurrentTimeUp(0.1, true);
     }
+  },
+
+  /**
+   * 抖音点播的倍速写在内部播放器上，video 上的倍速锁拦不住抖音自己重置倍速。
+   * 倍速锁定期间，如果发现内部播放器的倍速和设定值不一致，就改回设定值。
+   */
+  keepDouyinPlaybackRate (player) {
+    const t = this;
+    if (!player || t.playerInstance !== player || !t.isLockPlaybackRate()) return false
+    const controller = getDouyinVodController(player);
+    if (!controller) return false
+    const rate = t.getPlaybackRate();
+    if (!(rate > 0) || Math.abs(controller.playbackRate - rate) < 0.05) return false
+    controller.playbackRate = rate;
+    return true
   },
 
   /* 设置播放速度 */
