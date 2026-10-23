@@ -3,7 +3,7 @@
 // @name:zh      音视频增强脚本：支持无极调速、倍速快学、快乐刷剧、视频下载、画面截图等「适用大部分网站」
 // @namespace    https://github.com/xxxily/h5player
 // @homepage     https://github.com/xxxily/h5player
-// @version      5.0.2
+// @version      5.1.0
 // @description  视频增强脚本，支持所有H5音视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @description:zh  音视频增强脚本，支持所有H5视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @author       ankvps
@@ -590,55 +590,6 @@ function clone (source) {
   return result
 }
 
-/* 遍历对象，但不包含其原型链上的属性 */
-function forIn (obj, fn) {
-  fn = fn || function () {};
-  for (var key in obj) {
-    if (Object.hasOwnProperty.call(obj, key)) {
-      fn(key, obj[key]);
-    }
-  }
-}
-
-/**
- * 深度合并两个可枚举的对象
- * @param objA {object} -必选 对象A
- * @param objB {object} -必选 对象B
- * @param concatArr {boolean} -可选 合并数组，默认遇到数组的时候，直接以另外一个数组替换当前数组，将此设置true则，遇到数组的时候一律合并，而不是直接替换
- * @returns {*|void}
- */
-function mergeObj (objA, objB, concatArr) {
-  function isObj (obj) {
-    return Object.prototype.toString.call(obj) === '[object Object]'
-  }
-  function isArr (arr) {
-    return Object.prototype.toString.call(arr) === '[object Array]'
-  }
-  if (!isObj(objA) || !isObj(objB)) return objA
-  function deepMerge (objA, objB) {
-    forIn(objB, function (key) {
-      const subItemA = objA[key];
-      const subItemB = objB[key];
-      if (typeof subItemA === 'undefined') {
-        objA[key] = subItemB;
-      } else {
-        if (isObj(subItemA) && isObj(subItemB)) {
-          /* 进行深层合并 */
-          objA[key] = deepMerge(subItemA, subItemB);
-        } else {
-          if (concatArr && isArr(subItemA) && isArr(subItemB)) {
-            objA[key] = subItemA.concat(subItemB);
-          } else {
-            objA[key] = subItemB;
-          }
-        }
-      }
-    });
-    return objA
-  }
-  return deepMerge(objA, objB)
-}
-
 /**
  * 根据文本路径获取对象里面的值，如需支持数组请使用lodash的get方法
  * @param obj {Object} -必选 要操作的对象
@@ -953,39 +904,6 @@ function objToInlineStyle (obj) {
   return styleArr.join('; ')
 }
 
-/* ua信息伪装 */
-function fakeUA (ua) {
-  // Object.defineProperty(navigator, 'userAgent', {
-  //   value: ua,
-  //   writable: false,
-  //   configurable: false,
-  //   enumerable: true
-  // })
-
-  const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
-  Object.defineProperty(Navigator.prototype, 'userAgent', { ...desc, get: function () { return ua } });
-}
-
-/* ua信息来源：https://developers.whatismybrowser.com */
-const userAgentMap = {
-  android: {
-    chrome: 'Mozilla/5.0 (Linux; Android 9; SM-G960F Build/PPR1.180610.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/74.0.3729.157 Mobile Safari/537.36',
-    firefox: 'Mozilla/5.0 (Android 7.0; Mobile; rv:57.0) Gecko/57.0 Firefox/57.0'
-  },
-  iPhone: {
-    safari: 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/111.0.0.0 Mobile/15E148 Safari/604.1',
-    chrome: 'Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/74.0.3729.121 Mobile/15E148 Safari/605.1'
-  },
-  iPad: {
-    safari: 'Mozilla/5.0 (iPad; CPU OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Mobile/15E148 Safari/604.1',
-    chrome: 'Mozilla/5.0 (iPad; CPU OS 12_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/74.0.3729.155 Mobile/15E148 Safari/605.1'
-  },
-  mac: {
-    safari: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.1 Safari/605.1.15',
-    chrome: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Firefox) Chrome/74.0.3729.157 Safari/537.36'
-  }
-};
-
 /**
  * 判断是否处于Iframe中
  * @returns {boolean}
@@ -1185,77 +1103,6 @@ function isRegisterKey (event) {
   const key = event.key.toLowerCase();
   return hasUseKey.keyCodeList.includes(keyCode) ||
     hasUseKey.keyList.includes(key)
-}
-
-/**
- * 由于tampermonkey对window对象进行了封装，我们实际访问到的window并非页面真实的window
- * 这就导致了如果我们需要将某些对象挂载到页面的window进行调试的时候就无法挂载了
- * 所以必须使用特殊手段才能访问到页面真实的window对象，于是就有了下面这个函数
- * @returns {Promise<void>}
- */
-async function getPageWindow () {
-  return new Promise(function (resolve, reject) {
-    if (window._pageWindow) {
-      return resolve(window._pageWindow)
-    }
-
-    /* 尝试通过同步的方式获取pageWindow */
-    try {
-      const pageWin = getPageWindowSync();
-      if (pageWin && pageWin.document && pageWin.XMLHttpRequest) {
-        window._pageWindow = pageWin;
-        resolve(pageWin);
-        return pageWin
-      }
-    } catch (e) {}
-
-    /* 下面异步获取pagewindow的方法在最新的chrome浏览器里已失效 */
-
-    const listenEventList = ['load', 'mousemove', 'scroll', 'get-page-window-event'];
-
-    function getWin (event) {
-      window._pageWindow = this;
-      // debug.log('getPageWindow succeed', event)
-      listenEventList.forEach(eventType => {
-        window.removeEventListener(eventType, getWin, true);
-      });
-      resolve(window._pageWindow);
-    }
-
-    listenEventList.forEach(eventType => {
-      window.addEventListener(eventType, getWin, true);
-    });
-
-    /* 自行派发事件以便用最短的时间获得pageWindow对象 */
-    window.dispatchEvent(new window.Event('get-page-window-event'));
-  })
-}
-getPageWindow();
-
-/**
- * 通过同步的方式获取pageWindow
- * 注意同步获取的方式需要将脚本写入head，部分网站由于安全策略会导致写入失败，而无法正常获取
- * @returns {*}
- */
-function getPageWindowSync (rawFunction) {
-  if (window.unsafeWindow) return window.unsafeWindow
-  if (document._win_) return document._win_
-
-  try {
-    rawFunction = rawFunction || window.__rawFunction__ || Function.prototype.constructor;
-    // return rawFunction('return window')()
-    // Function('return (function(){}.constructor("return this")());')
-    return rawFunction('return (function(){}.constructor("var getPageWindowSync=1; return this")());')()
-  } catch (e) {
-    console.error('getPageWindowSync error', e);
-
-    const head = document.head || document.querySelector('head');
-    const script = document.createElement('script');
-    script.appendChild(document.createTextNode('document._win_ = window'));
-    head.appendChild(script);
-
-    return document._win_
-  }
 }
 
 function openInTab (url, opts, referer) {
@@ -1756,10 +1603,6 @@ class ConfigManager {
       });
     }
   }
-
-  mergeDefConf (conf) {
-    return mergeObj(this.opts.config, conf)
-  }
 }
 
 /* 使用示例： */
@@ -1843,11 +1686,6 @@ const configManager = new ConfigManager({
         desc: '水平镜像翻转',
         key: 'm',
         command: 'setMirror'
-      },
-      {
-        desc: '下载音视频文件（实验性功能）',
-        key: 'shift+d',
-        command: 'mediaDownload'
       },
       {
         desc: '缩小视频画面 -0.05',
@@ -2086,11 +1924,6 @@ const configManager = new ConfigManager({
         command: 'setNextVideo'
       },
       {
-        desc: '插入debugger断点',
-        key: 'ctrl+shift+alt+d',
-        command: 'debuggerNow'
-      },
-      {
         desc: '执行JS脚本',
         key: 'ctrl+j ctrl+s',
         command: () => {
@@ -2104,24 +1937,18 @@ const configManager = new ConfigManager({
       /* 长按多久响应鼠标长按事件 */
       longPressTime: 600
     },
-    download: {
-      enable: true
-    },
     enhance: {
       /* 不禁用默认的调速逻辑，则在多个视频切换时，速度很容易被重置，所以该选项默认开启 */
       blockSetPlaybackRate: true,
 
       blockSetCurrentTime: false,
       blockSetVolume: false,
-      allowExperimentFeatures: false,
-      allowExternalCustomConfiguration: false,
       /* 是否开启音量增益功能 */
       allowAcousticGain: false,
       /* 是否开启跨域控制 */
       allowCrossOriginControl: true,
       unfoldMenu: false
     },
-    debug: false,
     blacklist: {
       /**
        * url黑名单，在这些url下面禁止运行h5player脚本
@@ -2308,141 +2135,10 @@ let TCC$1 = class TCC {
   }
 };
 
-class Debug {
-  constructor (config = {}) {
-    this.config = {
-      msg: '[Debug Msg]',
-      /* 显示调用栈信息 */
-      trace: false,
-      /* 是否把调用栈信息和要打印的信息放在一组折叠起来，直接输出的话再大量较多信息的时候会显得非常凌乱，所以默认true */
-      traceGroup: true,
-      printTime: false,
 
-      /* 统一设置字体颜色，背景颜色，其它样式等 */
-      color: '#000000',
-      backgroundColor: 'transparent',
-      style: '',
-
-      ...config,
-
-      /* 为不同的调试方法设置不同的字体颜色，背景颜色，其它样式等 */
-      colorMap: {
-        info: '#2274A5',
-        log: '#95B46A',
-        warn: '#F5A623',
-        error: '#D33F49',
-        ...config.colorMap || {}
-      },
-      backgroundColorMap: {
-        info: '',
-        log: '',
-        warn: '',
-        error: '',
-        ...config.backgroundColorMap || {}
-      },
-      styleMap: {
-        info: '',
-        log: '',
-        warn: '',
-        error: '',
-        ...config.styleMap || {}
-      }
-    };
-
-    const debugMethodList = ['log', 'error', 'info', 'warn'];
-    debugMethodList.forEach((name) => {
-      this[name] = this.createDebugMethod(name);
-    });
-  }
-
-  create (msg) {
-    return new Debug(msg)
-  }
-
-  createDebugMethod (name) {
-    name = name || 'info';
-
-    const { msg, color, colorMap, backgroundColor, backgroundColorMap, style, styleMap, printTime, trace, traceGroup } = this.config;
-    const textColor = colorMap[name] || color;
-    const bgColor = backgroundColorMap[name] || backgroundColor;
-    const customStyle = styleMap[name] || style;
-
-    return function () {
-      if (!window._debugMode_) {
-        return false
-      }
-
-      const arg = Array.from(arguments);
-      const arg0 = arg[0];
-      arg.unshift(`color: ${textColor}; background-color: ${bgColor}; ${customStyle}`);
-
-      let timeStr = '';
-
-      if (printTime) {
-        const curTime = new Date();
-        const H = curTime.getHours();
-        const M = curTime.getMinutes();
-        const S = curTime.getSeconds();
-        timeStr = `[${H}:${M}:${S}] `;
-      }
-
-      arg.unshift(`%c ${timeStr}${msg} `);
-
-      if (trace) {
-        if (traceGroup) {
-          const arg1Str = typeof arg0 === 'string' ? arg0 : Object.prototype.toString.call(arg0);
-          console.groupCollapsed(`%c ${timeStr}${msg} ${arg1Str}`, `color: ${textColor}; background-color: ${bgColor}; ${customStyle}`);
-          window.console[name].apply(console, arg);
-          console.trace();
-          console.groupEnd();
-        } else {
-          window.console[name].apply(console, arg);
-          console.trace();
-        }
-      } else {
-        window.console[name].apply(window.console, arg);
-      }
-    }
-  }
-
-  isDebugMode () {
-    return Boolean(window._debugMode_)
-  }
-}
-
-// function demo () {
-//   window._debugMode_ = true
-//   window.debug = new Debug({
-//     msg: '[Debug Message]',
-//     colorMap: {
-//       info: '#FFFFFF',
-//       log: '#FFFFFF'
-//     },
-//     backgroundColorMap: {
-//       info: '#2274A5',
-//       log: '#95B46A'
-//     },
-//     style: 'font-size: 22px; font-weight: bold; padding: 2px 4px; border-radius: 2px;',
-//     trace: true,
-//     traceGroup: true,
-//     printTime: true
-//   })
-
-//   window.debug.log('debug mode is on', window.debug)
-//   window.debug.info('debug mode is on', window.debug)
-//   window.debug.warn('debug mode is on', window.debug)
-//   window.debug.error('debug mode is on', window.debug)
-// }
-// demo()
-
-var Debug$1 = new Debug();
-
-var debug = Debug$1.create({
-  msg: '[H5player Msg]',
-  trace: false,
-  traceGroup: true,
-  printTime: false
-});
+/* 调试输出已移除：保留同名空函数，各处 debug.xxx() 调用无需改动 */
+const noop = () => {};
+const debug = { log: noop, info: noop, warn: noop, error: noop, isDebugMode: () => false };
 
 const $q = function (str) { return document.querySelector(str) };
 
@@ -3080,43 +2776,6 @@ function h5PlayerTccInit (h5Player) {
   })
 }
 
-function mergeTaskConf (config) {
-  return mergeObj(taskConf, config)
-}
-
-/* ua伪装配置 */
-const fakeConfig = {
-  // 'tv.cctv.com': userAgentMap.iPhone.chrome,
-  // 'v.qq.com': userAgentMap.iPad.chrome,
-  'open.163.com': userAgentMap.iPhone.chrome,
-  'm.open.163.com': userAgentMap.iPhone.chrome,
-  /* 百度盘的非会员会使用自身的专用播放器，导致没法使用h5player，所以需要通过伪装ua来解决该问题 */
-  'pan.baidu.com': userAgentMap.iPhone.safari
-};
-
-function setFakeUA (ua) {
-  const host = window.location.host;
-  ua = ua || fakeConfig[host];
-
-  /**
-   * 动态判断是否需要进行ua伪装
-   * 下面方案暂时不可用
-   * 由于部分网站跳转至移动端后域名不一致，形成跨域问题
-   * 导致无法同步伪装配置而不断死循环跳转
-   * eg. open.163.com
-   * */
-  // let customUA = window.localStorage.getItem('_h5_player_user_agent_')
-  // debug.log(customUA, window.location.href, window.navigator.userAgent, document.referrer)
-  // if (customUA) {
-  //   fakeUA(customUA)
-  //   alert(customUA)
-  // } else {
-  //   alert('ua false')
-  // }
-
-  ua && fakeUA(ua);
-}
-
 /**
  * 元素全屏API，同时兼容网页全屏
  */
@@ -3577,31 +3236,11 @@ const zhCN = {
   notAllowAcousticGain: '禁用音量增益能力',
   allowCrossOriginControl: '开启跨域控制能力',
   notAllowCrossOriginControl: '禁用跨域控制能力',
-  allowExperimentFeatures: '开启实验性功能',
-  notAllowExperimentFeatures: '禁用实验性功能',
-  experimentFeaturesWarning: '实验性功能容易造成一些不确定的问题，请谨慎开启',
-  useMediaDownloadTips: '使用下载功能，需开启实验性功能，\n实验性功能容易造成一些不确定的问题，确定要开启吗？',
-  allowExternalCustomConfiguration: '开启外部自定义能力',
-  notAllowExternalCustomConfiguration: '关闭外部自定义能力',
   configFail: '配置失败',
   globalSetting: '全局设置',
   localSetting: '仅用于此网站',
-  openDebugMode: '开启调试模式',
-  closeDebugMode: '关闭调试模式',
   unfoldMenu: '展开菜单',
   foldMenu: '折叠菜单',
-  mediaDownload: {
-    enable: '开启媒体下载',
-    disable: '关闭媒体下载',
-    downloading: '文件正在下载中，确定重复执行此操作？',
-    hasDownload: '文件已经下载，确定重复执行此操作？',
-    confirmTitle: '请输入文件名',
-    notSupport: '当前媒体文件无法下载，下载功能待优化完善',
-    notEndOfStream: '媒体数据还没完全就绪，确定要执行下载操作？',
-    cancelAutoDownload: '是否取消自动下载？',
-    autoDownload: '媒体数据完全就绪后，是否自动下载？',
-    notFoundMediaSource: '未找到对应的媒体流数据，数据可能被清理或者媒体元素已经被移除，建议刷新页面后重试'
-  },
   autoGotoBufferedTime: '自动跟随跳转到缓冲区时间',
   disableAutoGotoBufferedTime: '禁用自动跟随跳转到缓冲区时间',
   mouse: {
@@ -4629,7 +4268,7 @@ const monkeyMenu = {
   }
 };
 
-const version = '5.0.2';
+const version = '5.1.0';
 
 function refreshPage(msg) {
   msg = msg || '配置已更改，马上刷新页面让配置生效？';
@@ -4735,39 +4374,6 @@ const globalFunctional = {
       }
     }
   },
-  toggleExperimentFeatures: {
-    title: () => `${configManager.get('enhance.allowExperimentFeatures') ? i18n.t('notAllowExperimentFeatures') : i18n.t('allowExperimentFeatures')} 「${i18n.t('globalSetting')}」`,
-    desc: () => `${configManager.get('enhance.allowExperimentFeatures') ? i18n.t('notAllowExperimentFeatures') : i18n.t('allowExperimentFeatures')} 「${i18n.t('globalSetting')}」`,
-    fn: () => {
-      const confirm = window.confirm(configManager.get('enhance.allowExperimentFeatures') ? i18n.t('notAllowExperimentFeatures') : i18n.t('experimentFeaturesWarning'));
-      if (confirm) {
-        configManager.setGlobalStorage('enhance.allowExperimentFeatures', !configManager.get('enhance.allowExperimentFeatures'));
-        window.location.reload();
-      }
-    }
-  },
-  toggleExternalCustomConfiguration: {
-    title: () => `${configManager.get('enhance.allowExternalCustomConfiguration') ? i18n.t('notAllowExternalCustomConfiguration') : i18n.t('allowExternalCustomConfiguration')} 「${i18n.t('globalSetting')}」`,
-    desc: () => `${configManager.get('enhance.allowExternalCustomConfiguration') ? i18n.t('notAllowExternalCustomConfiguration') : i18n.t('allowExternalCustomConfiguration')} 「${i18n.t('globalSetting')}」`,
-    fn: () => {
-      const confirm = window.confirm(configManager.get('enhance.allowExternalCustomConfiguration') ? i18n.t('notAllowExternalCustomConfiguration') : i18n.t('allowExternalCustomConfiguration'));
-      if (confirm) {
-        configManager.setGlobalStorage('enhance.allowExternalCustomConfiguration', !configManager.getGlobalStorage('enhance.allowExternalCustomConfiguration'));
-        window.location.reload();
-      }
-    }
-  },
-  toggleDebugMode: {
-    title: () => `${configManager.getGlobalStorage('debug') ? i18n.t('closeDebugMode') : i18n.t('openDebugMode')} 「${i18n.t('globalSetting')}」`,
-    desc: () => `${configManager.getGlobalStorage('debug') ? i18n.t('closeDebugMode') : i18n.t('openDebugMode')} 「${i18n.t('globalSetting')}」`,
-    fn: () => {
-      const confirm = window.confirm(configManager.getGlobalStorage('debug') ? i18n.t('closeDebugMode') : i18n.t('openDebugMode'));
-      if (confirm) {
-        configManager.setGlobalStorage('debug', !configManager.getGlobalStorage('debug'));
-        window.location.reload();
-      }
-    }
-  },
 
   /* 还原全局的默认配置 */
   restoreGlobalConfiguration: {
@@ -4841,30 +4447,6 @@ const globalFunctional = {
       const longPressTime = prompt(`${i18n.t('mouse.longPressTime')}「${i18n.t('globalSetting')}」`, configManager.getGlobalStorage('mouse.longPressTime') || 600);
       if (longPressTime) {
         configManager.setGlobalStorage('mouse.longPressTime', Number(longPressTime));
-        window.location.reload();
-      }
-    }
-  },
-
-  toggleDownloadControl: {
-    title: () => `${configManager.getGlobalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('globalSetting')}」`,
-    desc: () => `${configManager.getGlobalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('globalSetting')}」`,
-    fn: () => {
-      const confirm = window.confirm(`${configManager.getGlobalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('globalSetting')}」`);
-      if (confirm) {
-        configManager.setGlobalStorage('download.enable', !configManager.getGlobalStorage('download.enable'));
-        window.location.reload();
-      }
-    }
-  },
-
-  toggleDownloadControlUnderCurrentSite: {
-    title: () => `${configManager.getLocalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('localSetting')}」`,
-    desc: () => `${configManager.getLocalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('localSetting')}」`,
-    fn: () => {
-      const confirm = window.confirm(`${configManager.getLocalStorage('download.enable') === false ? i18n.t('mediaDownload.enable') : i18n.t('mediaDownload.disable')} 「${i18n.t('localSetting')}」`);
-      if (confirm) {
-        configManager.setLocalStorage('download.enable', !configManager.getLocalStorage('download.enable'));
         window.location.reload();
       }
     }
@@ -4968,20 +4550,6 @@ function registerH5playerMenus (h5player) {
         type: 'global',
         disable: foldMenu
       },
-      {
-        ...globalFunctional.toggleExperimentFeatures,
-        type: 'global',
-        disable: foldMenu
-      },
-      {
-        ...globalFunctional.toggleExternalCustomConfiguration,
-        type: 'global',
-        disable: foldMenu
-      },
-      {
-        ...globalFunctional.toggleDebugMode,
-        disable: foldMenu
-      }
     ];
 
     let titlePrefix = '';
@@ -5067,313 +4635,6 @@ function proxyHTMLMediaElementEvent () {
     }
   });
 }
-
-const mediaSource = (function () {
-  let hasMediaSourceInit = false;
-  const originMethods = {};
-  const originURLMethods = {};
-  const mediaSourceMap = new original.Map();
-  const objectURLMap = new original.Map();
-
-  function connectMediaSourceWithMediaElement (mediaEl) {
-    const curSrc = mediaEl.currentSrc || mediaEl.src;
-
-    if (!curSrc) { return false }
-
-    mediaSourceMap.forEach(mediaSourceInfo => {
-      if (mediaSourceInfo.mediaSource.__objURL__ && curSrc === mediaSourceInfo.mediaSource.__objURL__) {
-        mediaSourceInfo.mediaElement = mediaEl;
-      }
-    });
-  }
-
-  /* 如果mediaSourceMap中关联的mediaEl检测到不存在了，则清理mediaSourceMap中的数据，减少内存占用 */
-  function cleanMediaSourceData () {
-    function removeMediaSourceData (mediaSourceInfo) {
-      console.log('[cleanMediaSourceData][removeMediaSourceData]', mediaSourceInfo.mediaUrl || mediaSourceInfo.mediaSource.__objURL__);
-
-      /* 清理sourceBuffer相关数据 */
-      if (mediaSourceInfo.sourceBuffer && mediaSourceInfo.sourceBuffer.length) {
-        mediaSourceInfo.sourceBuffer.forEach(sourceBufferItem => {
-          /* 清空buffer数据 */
-          sourceBufferItem.bufferData = [];
-          /* 移除原始appendBuffer的引用 */
-          sourceBufferItem.originAppendBuffer = null;
-        });
-        mediaSourceInfo.sourceBuffer = [];
-      }
-
-      /* 移除对mediaElement的引用 */
-      mediaSourceInfo.mediaElement = null;
-
-      original.map.delete.call(mediaSourceMap, mediaSourceInfo.mediaSource);
-      original.map.delete.call(objectURLMap, mediaSourceInfo.mediaSource);
-    }
-
-    mediaSourceMap.forEach((mediaSourceInfo) => {
-      if (!mediaSourceInfo.mediaElement || !(mediaSourceInfo.mediaElement instanceof HTMLMediaElement)) {
-        removeMediaSourceData(mediaSourceInfo);
-      } else {
-        if (isOutOfDocument(mediaSourceInfo.mediaElement)) {
-          removeMediaSourceData(mediaSourceInfo);
-        }
-      }
-    });
-  }
-
-  function proxyMediaSourceMethod () {
-    if (!originMethods.addSourceBuffer || !originMethods.endOfStream) {
-      return false
-    }
-
-    // TODO 该代理在上层调用生效可能存在延迟，原因待研究
-    originURLMethods.createObjectURL = originURLMethods.createObjectURL || URL.prototype.constructor.createObjectURL;
-    URL.prototype.constructor.createObjectURL = new original.Proxy(originURLMethods.createObjectURL, {
-      apply (target, ctx, args) {
-        const object = args[0];
-        const objectURL = target.apply(ctx, args);
-
-        if (object instanceof MediaSource && !original.map.has.call(objectURLMap, object)) {
-          object.__objURL__ = objectURL;
-          original.map.set.call(objectURLMap, object, objectURL);
-        }
-
-        return objectURL
-      }
-    });
-
-    MediaSource.prototype.addSourceBuffer = new original.Proxy(originMethods.addSourceBuffer, {
-      apply (target, ctx, args) {
-        if (!original.map.has.call(mediaSourceMap, ctx)) {
-          original.map.set.call(mediaSourceMap, ctx, {
-            mediaSource: ctx,
-            createTime: Date.now(),
-            sourceBuffer: [],
-            endOfStream: false
-          });
-        }
-
-        const mediaSourceInfo = original.map.get.call(mediaSourceMap, ctx);
-        const mimeCodecs = args[0] || '';
-        const sourceBuffer = target.apply(ctx, args);
-
-        const sourceBufferItem = {
-          mimeCodecs,
-          originAppendBuffer: sourceBuffer.appendBuffer,
-          bufferData: [],
-          mediaInfo: {}
-        };
-
-        try {
-          // mimeCodecs字符串示例：'video/mp4; codecs="avc1.42E01E, mp4a.40.2"'
-          const mediaInfo = sourceBufferItem.mediaInfo;
-          const tmpArr = sourceBufferItem.mimeCodecs.split(';');
-
-          mediaInfo.type = tmpArr[0].split('/')[0];
-          mediaInfo.format = tmpArr[0].split('/')[1];
-          mediaInfo.codecs = tmpArr[1].trim().replace('codecs=', '').replace(/["']/g, '');
-        } catch (e) {
-          original.console.error('[addSourceBuffer][mediaInfo] 媒体信息解析出错', sourceBufferItem, e);
-        }
-
-        mediaSourceInfo.sourceBuffer.push(sourceBufferItem);
-
-        /* 代理sourceBuffer.appendBuffer函数，并将buffer存一份到mediaSourceInfo里 */
-        sourceBuffer.appendBuffer = new original.Proxy(sourceBufferItem.originAppendBuffer, {
-          apply (bufTarget, bufCtx, bufArgs) {
-            const buffer = bufArgs[0];
-
-            if (!mediaSourceInfo.endOfStream) {
-              sourceBufferItem.bufferData.push(buffer);
-            }
-
-            /* 确保mediaUrl的存在和对应 */
-            if (original.map.get.call(objectURLMap, ctx)) {
-              mediaSourceInfo.mediaUrl = original.map.get.call(objectURLMap, ctx);
-            }
-
-            /* 如果appendBuffer依然活跃，但对应的mediaSource却被清理了，则尝试重新将数据关联回去 */
-            if (!original.map.get.call(mediaSourceMap, ctx)) {
-              original.map.set.call(mediaSourceMap, ctx, mediaSourceInfo);
-            }
-
-            return bufTarget.apply(bufCtx, bufArgs)
-          }
-        });
-
-        return sourceBuffer
-      }
-    });
-
-    MediaSource.prototype.endOfStream = new original.Proxy(originMethods.endOfStream, {
-      apply (target, ctx, args) {
-        /* 标识当前媒体流已加载完成 */
-        const mediaSourceInfo = original.map.get.call(mediaSourceMap, ctx);
-        if (mediaSourceInfo) {
-          mediaSourceInfo.endOfStream = true;
-
-          if (mediaSourceInfo.mediaElement && mediaSourceInfo.autoDownload && !mediaSourceInfo.hasDownload) {
-            downloadMediaSource(mediaSourceInfo.mediaElement);
-          }
-        }
-
-        return target.apply(ctx, args)
-      }
-    });
-  }
-
-  /**
-   * 下载媒体资源，下载代码参考：https://juejin.cn/post/6873267073674379277
-   */
-  function downloadMediaSource (mediaEl, title) {
-    // const srcList = mediaEl.srcList || []
-    const curSrc = mediaEl.currentSrc || mediaEl.src;
-
-    if (!curSrc) {
-      original.alert(i18n.t('mediaDownload.notSupport'));
-      return false
-    }
-
-    let hasFindMediaSource = false;
-    mediaSourceMap.forEach(mediaSourceInfo => {
-      const mediaSource = mediaSourceInfo.mediaSource;
-      if (!mediaSource.__objURL__) {
-        console.error('no objURL', mediaSource, mediaSourceInfo);
-        return false
-      }
-
-      /* 排除非当前媒体元素的媒体流 */
-      // if (srcList.length > 0 && !srcList.includes(mediaSource.__objURL__)) {
-      //   return false
-      // }
-      if (curSrc !== mediaSource.__objURL__) {
-        return false
-      }
-
-      hasFindMediaSource = true;
-      mediaSourceInfo.mediaElement = mediaEl;
-
-      // original.console.log('[downloadMediaSource][mediaSourceInfo]', mediaSourceInfo)
-
-      if (mediaSourceInfo.hasDownload) {
-        const confirm = original.confirm(i18n.t('mediaDownload.hasDownload'));
-        if (!confirm) {
-          return false
-        }
-      }
-
-      if (!mediaSourceInfo.hasDownload && !mediaSourceInfo.endOfStream) {
-        // original.console.log('[downloadMediaSource] 媒体数据还没完全就绪', mediaSourceInfo)
-
-        const confirm = original.confirm(i18n.t('mediaDownload.notEndOfStream'));
-        if (!confirm) {
-          if (mediaSourceInfo.autoDownload) {
-            const cancelAutoDownload = original.confirm(i18n.t('mediaDownload.cancelAutoDownload'));
-            if (cancelAutoDownload) {
-              mediaSourceInfo.autoDownload = false;
-            }
-          } else {
-            const autoDownload = original.confirm(i18n.t('mediaDownload.autoDownload'));
-            if (autoDownload) {
-              mediaSourceInfo.autoDownload = true;
-            }
-          }
-
-          return false
-        }
-      }
-
-      let mediaSourceTitle = null;
-      mediaSourceInfo.sourceBuffer.forEach(sourceBufferItem => {
-        if (!sourceBufferItem.mimeCodecs || sourceBufferItem.mimeCodecs.toString().indexOf(';') === -1) {
-          const msg = '[downloadMediaSource][mimeCodecs][error] mimeCodecs不存在或信息异常，无法下载';
-          original.console.error(msg, sourceBufferItem);
-          original.alert(msg);
-          return false
-        }
-
-        try {
-          let mediaTitle = `${mediaSourceTitle || sourceBufferItem.mediaInfo.title || title || mediaEl.getAttribute('data-title') || document.title || Date.now()}`;
-
-          if (!mediaSourceTitle && !sourceBufferItem.mediaInfo.title) {
-            mediaTitle = original.prompt(i18n.t('mediaDownload.confirmTitle'), mediaTitle);
-
-            if (!mediaTitle) { return false }
-
-            sourceBufferItem.mediaInfo.title = mediaTitle;
-          }
-
-          mediaSourceTitle = mediaTitle;
-
-          /* 自动补充媒体类型和文件后缀 */
-          mediaTitle = `${mediaTitle}_${sourceBufferItem.mediaInfo.type}.${sourceBufferItem.mediaInfo.format}`;
-
-          const a = document.createElement('a');
-          const blobUrl = URL.createObjectURL(new Blob(sourceBufferItem.bufferData));
-          a.href = blobUrl;
-          a.download = mediaTitle;
-
-          try {
-            a.click();
-            mediaSourceInfo.hasDownload = true;
-          } finally {
-            /* 确保无论下载是否成功都释放blob URL */
-            URL.revokeObjectURL(blobUrl);
-            /* 下载完成后清空buffer数据 */
-            sourceBufferItem.bufferData = [];
-          }
-        } catch (e) {
-          mediaSourceInfo.hasDownload = false;
-          const msg = '[downloadMediaSource][error]';
-          original.console.error(msg, e);
-          original.alert(msg);
-        }
-      });
-    });
-
-    if (!hasFindMediaSource) {
-      original.alert(i18n.t('mediaDownload.notFoundMediaSource'));
-    }
-  }
-
-  function hasInit () {
-    return hasMediaSourceInit
-  }
-
-  function init () {
-    if (hasMediaSourceInit) {
-      return false
-    }
-
-    if (!window.MediaSource) {
-      return false
-    }
-
-    Object.keys(MediaSource.prototype).forEach(key => {
-      try {
-        if (MediaSource.prototype[key] instanceof Function) {
-          originMethods[key] = MediaSource.prototype[key];
-        }
-      } catch (e) { }
-    });
-
-    proxyMediaSourceMethod();
-
-    hasMediaSourceInit = true;
-  }
-
-  return {
-    init,
-    hasInit,
-    originMethods,
-    originURLMethods,
-    mediaSourceMap,
-    objectURLMap,
-    downloadMediaSource,
-    cleanMediaSourceData,
-    connectMediaSourceWithMediaElement
-  }
-})();
 
 /*!
  * @name         hotkeysRunner.js
@@ -5764,98 +5025,6 @@ function MediaElementAmplifier (mediaElem) {
   MediaElementAmplifier.prototype[name] = fn;
 });
 
-const downloadState = new Map();
-
-function download (url, title) {
-  const downloadEl = document.createElement('a');
-  downloadEl.href = url;
-  downloadEl.target = '_blank';
-  downloadEl.download = title;
-  downloadEl.click();
-}
-
-function mediaDownload (mediaEl, title, downloadType) {
-  /**
-   * 当媒体包含source标签时，媒体标签的真实地址将会是currentSrc
-   * https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/currentSrc
-   */
-  const mediaUrl = mediaEl.src || mediaEl.currentSrc;
-  const mediaState = downloadState.get(mediaUrl) || {};
-
-  if (mediaEl && mediaUrl && !mediaUrl.startsWith('blob:')) {
-    const mediaInfo = {
-      type: mediaEl instanceof HTMLVideoElement ? 'video' : 'audio',
-      format: mediaEl instanceof HTMLVideoElement ? 'mp4' : 'mp3'
-    };
-    let mediaTitle = `${title || mediaEl.getAttribute('data-title') || document.title || Date.now()}_${mediaInfo.type}.${mediaInfo.format}`;
-
-    /* 小于5分钟的媒体文件，尝试通过fetch下载 */
-    if (downloadType === 'blob' || mediaEl.duration < 60 * 5) {
-      if (mediaState.downloading) {
-        /* 距上次点下载小于1s的情况直接不响应任何操作 */
-        if (Date.now() - mediaState.downloading < 1000 * 1) {
-          return false
-        } else {
-          const confirm = original.confirm(i18n.t('mediaDownload.downloading'));
-          if (!confirm) {
-            return false
-          }
-        }
-      }
-
-      if (mediaState.hasDownload) {
-        const confirm = original.confirm(i18n.t('mediaDownload.hasDownload'));
-        if (!confirm) {
-          return false
-        }
-      }
-
-      mediaTitle = original.prompt(i18n.t('mediaDownload.confirmTitle'), mediaTitle);
-      if (!mediaTitle) { return false }
-
-      if (!mediaTitle.endsWith(mediaInfo.format)) {
-        mediaTitle = mediaTitle + '.' + mediaInfo.format;
-      }
-
-      let fetchUrl = mediaUrl;
-      if (mediaUrl.startsWith('http://') && location.href.startsWith('https://')) {
-        /* 在https里fetch http资源会导致 block:mixed-content 错误，所以尝试将地址统一成https开头 */
-        fetchUrl = mediaUrl.replace('http://', 'https://');
-      }
-
-      mediaState.downloading = Date.now();
-      downloadState.set(mediaUrl, mediaState);
-      fetch(fetchUrl).then(res => {
-        res.blob().then(blob => {
-          const blobUrl = window.URL.createObjectURL(blob);
-          download(blobUrl, mediaTitle);
-
-          mediaState.hasDownload = true;
-          delete mediaState.downloading;
-          downloadState.set(mediaUrl, mediaState);
-          window.URL.revokeObjectURL(blobUrl);
-        });
-      }).catch(err => {
-        original.console.error('fetch下载操作失败:', err);
-
-        /* 下载兜底 */
-        download(mediaUrl, mediaTitle);
-
-        delete mediaState.downloading;
-        mediaState.hasDownload = true;
-        downloadState.set(mediaUrl, mediaState);
-      });
-    } else {
-      download(mediaUrl, mediaTitle);
-    }
-  } else if (mediaSource.hasInit()) {
-    /* 下载通过MediaSource管理的媒体文件 */
-    mediaSource.downloadMediaSource(mediaEl, title);
-  } else {
-    original.alert(i18n.t('mediaDownload.notSupport'));
-  }
-}
-
 /**
   * 检测当前页面是否为 Cloudflare 的 challenge 页面
   * @returns {boolean} 如果是 Cloudflare challenge 页面则返回 true，否则返回 false
@@ -5962,7 +5131,6 @@ const h5Player = {
   version,
   mediaCore,
   mediaPlusApi: null,
-  mediaSource,
   configManager,
   /* 提示文本的字号 */
   fontSize: 12,
@@ -6014,14 +5182,6 @@ const h5Player = {
     const confirm = window.confirm(this.__disableHotkeysTemporarily__ ? i18n.t('enableHotkeys') : i18n.t('disableHotkeys'));
     if (confirm) {
       this.__disableHotkeysTemporarily__ = !this.__disableHotkeysTemporarily__;
-    }
-  },
-
-  debuggerNow () {
-    if (debug.isDebugMode()) {
-      const script = document.createElement('script');
-      script.innerText = 'debugger';
-      document.body.appendChild(script);
     }
   },
 
@@ -6149,23 +5309,6 @@ const h5Player = {
       }
     });
     return wrapDom
-  },
-
-  /* 挂载到页面上的window对象，用于调试 */
-  async mountToGlobal () {
-    try {
-      const pageWindow = await getPageWindow();
-      if (pageWindow) {
-        pageWindow._h5Player = h5Player || 'null';
-        if (window.top !== window) {
-          pageWindow._h5PlayerInFrame = h5Player || 'null';
-        }
-        pageWindow._window = window || '';
-        debug.log('h5Player对象已成功挂载到全局');
-      }
-    } catch (e) {
-      debug.error(e);
-    }
   },
 
   /**
@@ -6322,18 +5465,10 @@ const h5Player = {
 
     needInitEvent && player.addEventListener('timeupdate', function () {
       srcRecord(player);
-      mediaSource.connectMediaSourceWithMediaElement(player);
     });
 
-    let lastCleanMediaSourceDataTime = Date.now();
     needInitEvent && player.addEventListener('progress', () => {
       updataBufferedTime(player);
-      mediaSource.connectMediaSourceWithMediaElement(player);
-
-      if (Date.now() - lastCleanMediaSourceDataTime > 1000 * 10) {
-        lastCleanMediaSourceDataTime = Date.now();
-        mediaSource.cleanMediaSourceData();
-      }
     });
 
     player.__registeredInitEvent__ = true;
@@ -6486,21 +5621,6 @@ const h5Player = {
         }, 200);
       }
     }
-  },
-
-  printPlayerInfo (p) {
-    const t = this;
-    const player = p || t.player();
-
-    const info = {
-      curPlayer: player,
-      srcList: player.srcList,
-      h5player: t,
-      mediaSource,
-      window
-    };
-
-    debug.info('[playerInfo]', info);
   },
 
   /* 设置视频全屏 */
@@ -7831,19 +6951,6 @@ const h5Player = {
     t.tips(i18n.t('tipsMsg.imgattrreset'));
   },
 
-  mediaDownload () {
-    if (configManager.get('enhance.allowExperimentFeatures')) {
-      debug.warn('[experimentFeatures][mediaDownload]');
-      mediaDownload(this.player());
-    } else {
-      const result = window.confirm(i18n.t('useMediaDownloadTips'));
-      if (result) {
-        configManager.setGlobalStorage('enhance.allowExperimentFeatures', !configManager.get('enhance.allowExperimentFeatures'));
-        window.location.reload();
-      }
-    }
-  },
-
   capture () {
     const player = this.player();
     videoCapturer.capture(player, true);
@@ -7899,10 +7006,6 @@ const h5Player = {
       if (key === 'm') {
         /* 垂直镜像翻转 */
         t.setMirror(true);
-      }
-
-      if (key === 'd') {
-        t.mediaDownload();
       }
 
       // 视频画面缩放相关事件
@@ -8580,31 +7683,8 @@ const h5Player = {
     t._hasBindEvent_ = true;
   },
 
-  setCustomConfiguration (config, tag = 'Default') {
-    if (!config) return false
-
-    const configuration = configManager.mergeDefConf(config.customConfiguration);
-    const taskConf = mergeTaskConf(config.customTaskControlCenter);
-    if (TCC && TCC.setTaskConf) {
-      TCC.setTaskConf(taskConf);
-    }
-
-    h5Player.hasSetCustomConfiguration = tag;
-    debug.info(`[CustomConfiguration][${tag}]`, configuration, taskConf);
-  },
-
-  mergeExternalConfiguration (config, tag = 'Default') {
-    if (!config || !configManager.getGlobalStorage('enhance.allowExternalCustomConfiguration')) return false
-    h5Player.setCustomConfiguration(config, 'External');
-    h5Player.hasExternalCustomConfiguration = tag;
-  },
-
   init: function (global) {
     const t = this;
-
-    if (window.unsafeWindow && window.unsafeWindow.__h5PlayerCustomConfiguration__) {
-      !t.hasExternalCustomConfiguration && t.mergeExternalConfiguration(window.unsafeWindow.__h5PlayerCustomConfiguration__);
-    }
 
     if (TCC && TCC.doTask('disable') === true) {
       debug.info(`[TCC][disable][${location.host}] 已禁止在该网站运行视频检测逻辑，您可查看任务配置中心的相关配置了解详情`);
@@ -8616,13 +7696,6 @@ const h5Player = {
       t.detecH5Player();
       return true
     }
-
-    if (configManager.get('debug') === true) {
-      window._debugMode_ = true;
-      t.mountToGlobal();
-    }
-
-    setFakeUA();
 
     /* 初始化任务配置中心 */
     TCC = h5PlayerTccInit(t);
@@ -8648,10 +7721,6 @@ const h5Player = {
     document.addEventListener('visibilitychange', function () {
       h5Player.initAutoPlay();
     });
-
-    if (window.unsafeWindow && configManager.getGlobalStorage('enhance.allowExternalCustomConfiguration')) {
-      window.unsafeWindow.__setH5PlayerCustomConfiguration__ = t.mergeExternalConfiguration;
-    }
   }
 };
 
@@ -8679,12 +7748,6 @@ async function h5PlayerInit () {
       mediaCore.init(function (mediaElement) {
         h5Player.init();
       });
-
-      if (configManager.get('enhance.allowExperimentFeatures') && configManager.get('download.enable')) {
-        mediaSource.init();
-        debug.warn(`[experimentFeatures][warning] ${i18n.t('experimentFeaturesWarning')}`);
-        debug.warn('[experimentFeatures][mediaSource][activated]');
-      }
 
       /* 禁止对playbackRate等属性进行锁定 */
       hackDefineProperty();
