@@ -3,7 +3,7 @@
 // @name:zh      音视频增强脚本：支持无极调速、倍速快学、快乐刷剧、视频下载、画面截图等「适用大部分网站」
 // @namespace    https://github.com/xxxily/h5player
 // @homepage     https://github.com/xxxily/h5player
-// @version      5.0.0
+// @version      5.0.1
 // @description  视频增强脚本，支持所有H5音视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @description:zh  音视频增强脚本，支持所有H5视频网站，例如：B站、抖音、腾讯视频、优酷、爱奇艺、西瓜视频、油管（YouTube）、微博视频、知乎视频、搜狐视频、网易公开课、百度网盘、阿里云盘、ted、instagram、twitter等。全程快捷键控制，支持：倍速播放/加速播放、视频画面截图、画中画、网页全屏、调节亮度、饱和度、对比度、自定义配置功能增强等功能，为你提供愉悦的在线视频播放体验。还有视频广告快进、在线教程/教育视频倍速快学、视频文件下载等能力
 // @author       ankvps
@@ -284,11 +284,20 @@ const mediaCore = (function () {
 
       /* 注意：调用此处的get和set和apply不受锁的限制 */
       get (keyName) {
+        const controller = getDouyinVodController(mediaElement);
+        if (controller && ['currentTime', 'playbackRate'].includes(keyName)) {
+          return controller[keyName]
+        }
         if (originDescriptors[keyName] && originDescriptors[keyName].get && !originMethods[keyName]) {
           return originDescriptors[keyName].get.apply(mediaElement)
         }
       },
       set (keyName, val) {
+        const controller = getDouyinVodController(mediaElement);
+        if (controller && ['currentTime', 'playbackRate'].includes(keyName) && typeof val !== 'undefined') {
+          controller[keyName] = keyName === 'currentTime' ? Math.max(0, Math.min(val, controller.duration)) : val;
+          return
+        }
         if (originDescriptors[keyName] && originDescriptors[keyName].set && !originMethods[keyName] && typeof val !== 'undefined') {
           // original.console.log(`[mediaPlusApi][${keyName}] 执行原生set操作`)
           return originDescriptors[keyName].set.apply(mediaElement, [val])
@@ -782,12 +791,38 @@ function isInShadow (node, returnShadowRoot) {
  * @returns {boolean}
  */
 /**
- * 是否为可控制的媒体元素
- * 用 srcObject 播放 MediaStream 的视频（例如抖音横屏视频两侧的"动态背景"，是 canvas 实时录屏）
- * 不能调速也不能跳转，不应被选为快捷键控制的对象
+ * 抖音新播放器会把普通点播视频渲染为 MediaStream。
+ * DOM video 只是输出画面，进度和倍速必须交给所属播放器的代理对象。
+ * 每次读取，避免信息流复用元素或销毁播放器后持有过期代理。
  */
+function getDouyinVodController (element) {
+  if (!element || !/(^|\.)douyin\.com$/.test(window.location.hostname)) return null
+  if (!(typeof MediaStream !== 'undefined' && element.srcObject instanceof MediaStream)) return null
+  try {
+    const root = element.closest && element.closest('.douyin-player');
+    const owner = root && (root.wrappedJSObject || root)._player;
+    const controller = owner && (owner.proxy || owner);
+    if (controller && controller.video === element && controller.isLive === false &&
+        Number.isFinite(controller.duration) && controller.duration > 0 &&
+        Number.isFinite(controller.currentTime) && Number.isFinite(controller.playbackRate)) {
+      return controller
+    }
+  } catch (e) {
+    /* 切换视频时代理可能已被 revoke，继续使用原生媒体检测。 */
+  }
+  return null
+}
+
+/* 真实媒体值：绕过倍速锁的伪装值，并兼容抖音的输出流。 */
+function getMediaControlValue (element, keyName) {
+  const api = element && mediaCore.mediaPlus(element);
+  return api ? api.get(keyName) : element && element[keyName]
+}
+
+/** 媒体流本身不可跳转，但有点播控制器的抖音输出流可以。 */
 function isControllableMedia (element) {
   if (!element) return false
+  if (getDouyinVodController(element)) return true
   return !(typeof MediaStream !== 'undefined' && element.srcObject instanceof MediaStream)
 }
 
@@ -3600,7 +3635,7 @@ const zhCN = {
     horizontalMirror: '水平镜像',
     verticalMirror: '垂直镜像',
     videozoom: '视频缩放率：',
-    uncontrollable: '直播不支持调速和快进快退'
+    uncontrollable: '当前媒体流未提供调速或进度控制接口'
   }
 };
 
@@ -6002,9 +6037,10 @@ const h5Player = {
       let playingMedia = null;
       let bestArea = 0;
       t.getPlayerList().forEach(media => {
-        if (media === playerInstance || !isControllableMedia(media) || !isMediaVisible(media) || media.paused || media.ended || media.readyState <= 2) return
+        if (media === playerInstance || !isControllableMedia(media) || !isMediaVisible(media) || media.ended) return
         const area = getVisibleArea(media);
-        if (area > bestArea) {
+        /* 正在播放优先；暂停或缓冲中的普通视频也可以接管不可控的背景流。 */
+        if (!playingMedia || (playingMedia.paused && !media.paused) || (playingMedia.paused === media.paused && area > bestArea)) {
           bestArea = area;
           playingMedia = media;
         }
@@ -6026,8 +6062,12 @@ const h5Player = {
       const mediaList = t.getPlayerList();
       if (mediaList.length) {
         /* 优先选可控制的媒体，全都不可控时才退回到最后一个 */
-        const controllable = mediaList.filter(isControllableMedia);
-        playerInstance = controllable.length ? controllable[controllable.length - 1] : mediaList[mediaList.length - 1];
+        const visible = mediaList.filter(isMediaVisible);
+        const candidates = visible.length ? visible : mediaList;
+        const controllable = candidates.filter(isControllableMedia);
+        playerInstance = controllable.length
+          ? controllable.reduce((best, media) => getVisibleArea(media) > getVisibleArea(best) ? media : best, controllable[controllable.length - 1])
+          : candidates[candidates.length - 1];
         t.playerInstance = playerInstance;
         t.initPlayerInstance(mediaList.length === 1);
       }
@@ -6546,7 +6586,7 @@ const h5Player = {
 
     if (!player) return
 
-    /* 直播、媒体流视频（如抖音推荐流里的直播间）无法调速，直接提示，不显示假的"播放速度：1" */
+    /* 没有点播控制器的媒体流无法通过原生 video 接口调速。 */
     if (!isControllableMedia(player)) {
       !notips && t.tips(i18n.t('tipsMsg.uncontrollable'));
       return false
@@ -6593,7 +6633,7 @@ const h5Player = {
       /* 将播放倍速同步到全部媒体元素 */
       const mediaList = t.getPlayerList();
       mediaList.forEach(media => {
-        if (media !== player) {
+        if (media !== player && isControllableMedia(media)) {
           const mediaPlusApi = mediaCore.mediaPlus(media);
           mediaPlusApi && mediaPlusApi.setPlaybackRate(curPlaybackRate);
         }
@@ -6717,7 +6757,7 @@ const h5Player = {
 
     t.unLockPlaybackRate();
 
-    const oldPlaybackRate = Number(player.playbackRate);
+    const oldPlaybackRate = Number(getMediaControlValue(player, 'playbackRate'));
     const playbackRate = oldPlaybackRate === 1 ? t.lastPlaybackRate : 1;
     if (oldPlaybackRate !== 1) {
       t.lastPlaybackRate = oldPlaybackRate;
@@ -6735,7 +6775,7 @@ const h5Player = {
     num = numUp(num) || 0.1;
     if (this.player()) {
       this.unLockPlaybackRate();
-      this.setPlaybackRate(this.player().playbackRate + num);
+      this.setPlaybackRate(getMediaControlValue(this.player(), 'playbackRate') + num);
 
       /* 防止外部调速逻辑的干扰，所以锁定一段时间 */
       this.lockPlaybackRate(1000);
@@ -6747,7 +6787,7 @@ const h5Player = {
     num = numDown(num) || -0.1;
     if (this.player()) {
       this.unLockPlaybackRate();
-      this.setPlaybackRate(this.player().playbackRate + num);
+      this.setPlaybackRate(getMediaControlValue(this.player(), 'playbackRate') + num);
 
       /* 防止外部调速逻辑的干扰，所以锁定一段时间 */
       this.lockPlaybackRate(1000);
@@ -6870,7 +6910,7 @@ const h5Player = {
         }
 
         this.unLockCurrentTime();
-        this.setCurrentTime(this.player().currentTime + num);
+        this.setCurrentTime(getMediaControlValue(this.player(), 'currentTime') + num);
 
         /* 防止外部进度控制逻辑的干扰，所以锁定一段时间 */
         this.lockCurrentTime(500);
@@ -6892,7 +6932,7 @@ const h5Player = {
           return
         }
 
-        let currentTime = this.player().currentTime + num;
+        let currentTime = getMediaControlValue(this.player(), 'currentTime') + num;
         if (currentTime < 1) {
           currentTime = 0;
         }
@@ -8309,7 +8349,7 @@ const h5Player = {
   },
 
   setPlayerInstance (el) {
-    if (!el && !el.getBoundingClientRect) {
+    if (!el || !el.getBoundingClientRect) {
       return false
     }
 
@@ -8317,7 +8357,7 @@ const h5Player = {
 
     /**
      * 当前已有一个屏幕上可见、可控制的视频时，不切换到：
-     * 1. 媒体流视频（如抖音的动态背景、直播），它们不能调速和跳转
+     * 1. 没有点播控制器的媒体流（如动态背景），它们不能调速和跳转
      * 2. 不在屏幕上的视频（如划走后仍在后台播放、卡顿恢复时又触发 playing 事件的直播）
      */
     const cur = t.playerInstance;
